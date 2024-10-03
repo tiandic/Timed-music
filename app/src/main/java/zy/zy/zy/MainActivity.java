@@ -1,17 +1,20 @@
-package com.example.myapplication;
+package zy.zy.zy;
 
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.TimePickerDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.DisplayMetrics;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.TimePicker;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
@@ -20,12 +23,13 @@ import androidx.appcompat.app.AppCompatActivity;
 import java.util.Calendar;
 import java.util.Locale;
 
+
 public class MainActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_SELECT_AUDIO = 1;
     private TextView selectedTimeText;
     private TextView selectedAudioText;
-    private Handler handler = new Handler();
+    private final Handler handler = new Handler();
     private Runnable timeCheckerRunnable;
     private Uri audioUri; // 用于存储选择的音频 URI
     private MediaPlayer mediaPlayer; // 用于播放音频
@@ -40,12 +44,7 @@ public class MainActivity extends AppCompatActivity {
         Button myButton = findViewById(R.id.button);
 
         // 设置点击事件监听器
-        myButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showCustomDialog();
-            }
-        });
+        myButton.setOnClickListener(v -> showCustomDialog());
     }
 
     // 显示自定义对话框
@@ -64,21 +63,13 @@ public class MainActivity extends AppCompatActivity {
         Button selectTimeButton = dialogView.findViewById(R.id.select_time_button);
 
         // 设置时间选择按钮点击事件
-        selectTimeButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showTimePickerDialog();
-            }
-        });
+        selectTimeButton.setOnClickListener(v -> showTimePickerDialog());
 
         // 设置选择音频按钮的点击事件
-        selectAudioButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
-                intent.setType("audio/*");
-                startActivityForResult(intent, REQUEST_CODE_SELECT_AUDIO);
-            }
+        selectAudioButton.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+            intent.setType("audio/*");
+            startActivityForResult(intent, REQUEST_CODE_SELECT_AUDIO);
         });
 
         // 设置对话框的确定和取消按钮
@@ -87,9 +78,12 @@ public class MainActivity extends AppCompatActivity {
             // 通过 ID 获取 TextView 的引用
             TextView gl_selectedTimeText = findViewById(R.id.selected_time_gl);
             TextView gl_selectedAudioText = findViewById(R.id.selected_audio_gl);
+            // 判断是否超出边界
+            String Time_sampleText=checkTextOverflow(selectedTimeText);
+            String Audio_sampleText=checkTextOverflow(selectedAudioText);
             // 更新
-            gl_selectedTimeText.setText("选择的时间: "+selectedTimeText.getText().toString());
-            gl_selectedAudioText.setText("选择的音频: "+selectedAudioText.getText().toString());
+            gl_selectedTimeText.setText(Time_sampleText);
+            gl_selectedAudioText.setText(Audio_sampleText);
             startTimeChecker(); // 开始检查时间
         });
 
@@ -98,17 +92,66 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog dialog = builder.create();
         dialog.show();
     }
+    // 检查文本是否超出边界并处理换行
+    private String checkTextOverflow(TextView selectedText) {
+        int screenWidth = getScreenWidth(this);
 
+        String Audio_text=selectedText.getText().toString();
+        StringBuilder sampleText= new StringBuilder();
+        float s_head=0;
+
+        float char_text_len;
+        float Boundary_distance;
+        for (int i=0;i<=Audio_text.length();i+=2) {
+            // 调用 TextUtils 获取字符串宽度
+            //每两个字符的长度
+            char_text_len=0;
+            // 与边界保持一点距离
+            Boundary_distance=0;
+
+            // 下一个要添加的字符的宽度
+            if (i<Audio_text.length()) {
+                // 如果i=0,或者i没越界
+                char_text_len = TextUtils.getCharWidthInPx(this, Audio_text.charAt(i));
+                Boundary_distance =TextUtils.getCharWidthInPx(this, Audio_text.charAt(i))*2;
+                s_head+=char_text_len;
+            }
+            if (i!=0){
+                // 每次叠加2个,i!=0防止访问越界
+                // 如果i越界了,那么i-1不越界,确保每个字符都添加
+                char_text_len=TextUtils.getCharWidthInPx(this, Audio_text.charAt(i-1));
+                Boundary_distance=TextUtils.getCharWidthInPx(this, Audio_text.charAt(i-1))*2;
+                s_head+=TextUtils.getCharWidthInPx(this, Audio_text.charAt(i-1));
+            }
+
+            // 超出边界则添加换行
+            if (char_text_len+s_head+Boundary_distance>=(float) screenWidth){
+                sampleText.append('\n');
+                s_head=0;
+            }
+            if (i>0){
+                sampleText.append(Audio_text.charAt(i - 1));
+            }
+            if (!(i>=Audio_text.length())) {
+                sampleText.append(Audio_text.charAt(i));
+            }
+        }
+        return sampleText.toString();
+    }
+    // 获取屏幕宽度的方法
+    private int getScreenWidth(Context context) {
+        DisplayMetrics displayMetrics = new DisplayMetrics();
+        WindowManager windowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
+        windowManager.getDefaultDisplay().getMetrics(displayMetrics);
+        return displayMetrics.widthPixels; // 返回屏幕宽度（像素）
+    }
     // 显示 TimePickerDialog
     private void showTimePickerDialog() {
         TimePickerDialog timePickerDialog = new TimePickerDialog(this,
-                new TimePickerDialog.OnTimeSetListener() {
-                    @Override
-                    public void onTimeSet(TimePicker view, int hourOfDay, int minute) {
-                        // 格式化时间为 "HH:mm"
-                        String formattedTime = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
-                        selectedTimeText.setText("选择的时间: " + formattedTime); // 将选择的时间显示在 TextView 中
-                    }
+                (view, hourOfDay, minute) -> {
+                    // 格式化时间为 "HH:mm"
+                    String formattedTime = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
+                    selectedTimeText.setText("选择的时间: " + formattedTime); // 将选择的时间显示在 TextView 中
                 }, 5, 30, true); // 默认时间设置为5:30
         timePickerDialog.show();
     }
