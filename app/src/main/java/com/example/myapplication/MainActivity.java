@@ -3,17 +3,21 @@ package com.example.myapplication;
 import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.content.Intent;
+import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.widget.TimePicker;  // 确保导入此类
+import android.widget.TimePicker;
 import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import java.util.Calendar;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
@@ -21,6 +25,11 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_SELECT_AUDIO = 1;
     private TextView selectedTimeText;
     private TextView selectedAudioText;
+    private Handler handler = new Handler();
+    private Runnable timeCheckerRunnable;
+    private Uri audioUri; // 用于存储选择的音频 URI
+    private MediaPlayer mediaPlayer; // 用于播放音频
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,6 +84,13 @@ public class MainActivity extends AppCompatActivity {
         // 设置对话框的确定和取消按钮
         builder.setPositiveButton("确定", (dialog, which) -> {
             Toast.makeText(MainActivity.this, "设置已保存", Toast.LENGTH_SHORT).show();
+            // 通过 ID 获取 TextView 的引用
+            TextView gl_selectedTimeText = findViewById(R.id.selected_time_gl);
+            TextView gl_selectedAudioText = findViewById(R.id.selected_audio_gl);
+            // 更新
+            gl_selectedTimeText.setText("选择的时间: "+selectedTimeText.getText().toString());
+            gl_selectedAudioText.setText("选择的音频: "+selectedAudioText.getText().toString());
+            startTimeChecker(); // 开始检查时间
         });
 
         builder.setNegativeButton("取消", (dialog, which) -> dialog.dismiss());
@@ -93,8 +109,47 @@ public class MainActivity extends AppCompatActivity {
                         String formattedTime = String.format(Locale.getDefault(), "%02d:%02d", hourOfDay, minute);
                         selectedTimeText.setText("选择的时间: " + formattedTime); // 将选择的时间显示在 TextView 中
                     }
-                }, 13, 0, true); // 默认时间设置为13:00
+                }, 5, 30, true); // 默认时间设置为5:30
         timePickerDialog.show();
+    }
+
+    // 开始定时检查时间
+    private void startTimeChecker() {
+        timeCheckerRunnable = new Runnable() {
+            @Override
+            public void run() {
+                // 获取当前时间
+                Calendar calendar = Calendar.getInstance();
+                String currentTime = String.format(Locale.getDefault(), "%02d:%02d", calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE));
+
+                // 获取选中的时间
+                String selectedTime = selectedTimeText.getText().toString().replace("选择的时间: ", "").trim();
+
+                // 比较当前时间与选中的时间
+                if (currentTime.equals(selectedTime)) {
+                    play(); // 执行播放方法
+                }
+
+                // 继续检查
+                handler.postDelayed(this, 1000); // 每秒检查一次
+            }
+        };
+        handler.post(timeCheckerRunnable); // 开始执行
+    }
+
+    // 播放音频的方法
+    private void play() {
+        if (audioUri != null) {
+            if (mediaPlayer == null) {
+                mediaPlayer = MediaPlayer.create(this, audioUri);
+            }
+            if (!mediaPlayer.isPlaying()) {
+                mediaPlayer.start();
+                Toast.makeText(this, "开始播放音频", Toast.LENGTH_SHORT).show();
+            }
+        } else {
+            Toast.makeText(this, "未选择音频文件", Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -102,11 +157,25 @@ public class MainActivity extends AppCompatActivity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_CODE_SELECT_AUDIO && resultCode == RESULT_OK) {
             if (data != null && data.getData() != null) {
-                String audioPath = data.getData().toString();
+                audioUri = data.getData(); // 获取选择的音频文件 URI
                 // 显示选择的音频文件名
-                selectedAudioText.setText("选择的音频: " + audioPath);
-                Toast.makeText(this, "选择的音频文件: " + audioPath, Toast.LENGTH_SHORT).show();
+                selectedAudioText.setText("选择的音频: " + audioUri.getPath());
+                Toast.makeText(this, "选择的音频文件: " + audioUri.getPath(), Toast.LENGTH_SHORT).show();
             }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // 停止检查时间
+        if (timeCheckerRunnable != null) {
+            handler.removeCallbacks(timeCheckerRunnable);
+        }
+        // 释放 MediaPlayer 资源
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
         }
     }
 }
