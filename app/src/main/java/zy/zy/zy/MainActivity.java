@@ -1,6 +1,5 @@
 package zy.zy.zy;
 
-import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.app.TimePickerDialog;
 import android.content.Context;
@@ -98,43 +97,43 @@ public class MainActivity extends AppCompatActivity {
 
         String Audio_text=selectedText.getText().toString();
         StringBuilder sampleText= new StringBuilder();
-        float s_head=0;
-
-        float char_text_len;
+        // 在遇到需要添加换行符之前的字符的总宽度
+        float s_head_len=0;
+        // 从 '/' 或者 '\' 开始的长度
+        int s_final_count=0;
+        // 与边界保持一点距离
         float Boundary_distance;
-        for (int i=0;i<=Audio_text.length();i+=2) {
-            // 调用 TextUtils 获取字符串宽度
-            //每两个字符的长度
-            char_text_len=0;
-            // 与边界保持一点距离
-            Boundary_distance=0;
 
-            // 下一个要添加的字符的宽度
-            if (i<Audio_text.length()) {
-                // 如果i=0,或者i没越界
-                char_text_len = TextUtils.getCharWidthInPx(this, Audio_text.charAt(i));
-                Boundary_distance =TextUtils.getCharWidthInPx(this, Audio_text.charAt(i))*2;
-                s_head+=char_text_len;
-            }
-            if (i!=0){
-                // 每次叠加2个,i!=0防止访问越界
-                // 如果i越界了,那么i-1不越界,确保每个字符都添加
-                char_text_len=TextUtils.getCharWidthInPx(this, Audio_text.charAt(i-1));
-                Boundary_distance=TextUtils.getCharWidthInPx(this, Audio_text.charAt(i-1))*2;
-                s_head+=TextUtils.getCharWidthInPx(this, Audio_text.charAt(i-1));
+        for (int i=0;i<Audio_text.length();i++) {
+
+            if (Audio_text.charAt(i) == '/' || Audio_text.charAt(i) == '\\' || i==Audio_text.length()-1) {
+                float total_char_len = 0;
+
+                // 计算当前字符之前的所有字符宽度
+                for (int j = s_final_count; j >= 0; j--) {
+                    total_char_len += TextUtils.getCharWidthInPx(this, Audio_text.charAt(i - j));
+                }
+
+                Boundary_distance = TextUtils.getCharWidthInPx(this, Audio_text.charAt(i));
+
+                // 判断是否超出边界
+                if (total_char_len + s_head_len + Boundary_distance >= screenWidth) {
+                    sampleText.append('\n'); // 添加换行
+                    s_head_len = 0; // 重置宽度
+                } else {
+                    s_head_len += total_char_len; // 累加宽度
+                }
+
+                // 添加字符到 sampleText
+                for (int j = s_final_count; j >= 0; j--) {
+                    sampleText.append(Audio_text.charAt(i - j));
+                }
+
+                s_final_count = 0; // 重置计数器
+            } else {
+                s_final_count++; // 继续计数
             }
 
-            // 超出边界则添加换行
-            if (char_text_len+s_head+Boundary_distance>=(float) screenWidth){
-                sampleText.append('\n');
-                s_head=0;
-            }
-            if (i>0){
-                sampleText.append(Audio_text.charAt(i - 1));
-            }
-            if (!(i>=Audio_text.length())) {
-                sampleText.append(Audio_text.charAt(i));
-            }
         }
         return sampleText.toString();
     }
