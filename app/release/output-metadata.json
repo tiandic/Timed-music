@@ -4,7 +4,7 @@
     "type": "APK",
     "kind": "Directory"
   },
-  "applicationId": "com.example.myapplication",
+  "applicationId": "zy.zy.zy",
   "variantName": "release",
   "elements": [
     {
@@ -12,7 +12,7 @@
       "filters": [],
       "attributes": [],
       "versionCode": 1,
-      "versionName": "1.0",
+      "versionName": "1145.14",
       "outputFile": "app-release.apk"
     }
   ],
